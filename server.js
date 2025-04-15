@@ -29,8 +29,7 @@ app.get("/docs", (req, res) => {
                         lastName: "string",
                         username: "string",
                         email: "string",
-                        password: "string",
-                        role: "user | admin"
+                        password: "string"
                     }
                 }
             },
