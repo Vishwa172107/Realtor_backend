@@ -1,11 +1,20 @@
 const express = require("express")
 const mongoose = require("mongoose")
 require("dotenv").config()
+const cors = require("cors")
 const authRoutes = require("./Routes/AuthRoutes")
 const houseRoutes = require("./Routes/houseRoutes")
 
 const app = express()
 const port = process.env.PORT || 3000
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true)
+        callback(null, origin)
+    },
+    credentials: true,
+}));
 
 // Middleware
 app.use(express.json())
