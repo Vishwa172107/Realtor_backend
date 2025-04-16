@@ -6,35 +6,35 @@ const verifyToken = require("../utils/Auth");
 const { upload } = require('../utils/cloudinary');
 
 // Function to fetch coordinates from the Nominatim API
-// async function getCoordinates(street, city, state, zip) {
-//     try {
-//         // Construct the full address for geocoding
-//         const address = `${street}, ${city}, ${state}, ${zip}, USA`;
+async function getCoordinates(street, city, state, zip) {
+    try {
+        // Construct the full address for geocoding
+        const address = `${street}, ${city}, ${state}, ${zip}, USA`;
 
-//         // Send a GET request to Nominatim API for geocoding
-//         const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-//             params: {
-//                 q: address,
-//                 format: 'json',
-//                 addressdetails: 1,
-//                 limit: 1,
-//             },
-//         });
+        // Send a GET request to Nominatim API for geocoding
+        const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+            params: {
+                q: address,
+                format: 'json',
+                addressdetails: 1,
+                limit: 1,
+            },
+        });
 
-//         // If we get a valid response, return the latitude and longitude
-//         if (response.data && response.data.length > 0) {
-//             const { lat, lon } = response.data[0];
-//             return { latitude: parseFloat(lat), longitude: parseFloat(lon) };
-//         } else {
-//             // If no coordinates are found, return NaN values
-//             return { latitude: NaN, longitude: NaN };
-//         }
-//     } catch (error) {
-//         console.error('Error in geocoding:', error);
-//         // Return NaN if there's an error with the API request
-//         return { latitude: NaN, longitude: NaN };
-//     }
-// }
+        // If we get a valid response, return the latitude and longitude
+        if (response.data && response.data.length > 0) {
+            const { lat, lon } = response.data[0];
+            return { latitude: parseFloat(lat), longitude: parseFloat(lon) };
+        } else {
+            // If no coordinates are found, return NaN values
+            return { latitude: NaN, longitude: NaN };
+        }
+    } catch (error) {
+        console.error('Error in geocoding:', error);
+        // Return NaN if there's an error with the API request
+        return { latitude: NaN, longitude: NaN };
+    }
+}
 
 // Get all houses (Public)
 router.get("/houses", async (req, res) => {
