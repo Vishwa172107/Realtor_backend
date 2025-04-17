@@ -33,13 +33,11 @@ app.get("/docs", (req, res) => {
                 route: "/auth/signup",
                 description: "Register a new user",
                 body: {
-                    user: {
-                        firstName: "string",
-                        lastName: "string",
-                        username: "string",
-                        email: "string",
-                        password: "string"
-                    }
+                    firstName: "string",
+                    lastName: "string",
+                    username: "string",
+                    email: "string",
+                    password: "string"
                 }
             },
             {
@@ -47,10 +45,8 @@ app.get("/docs", (req, res) => {
                 route: "/auth/login",
                 description: "Login with email and password",
                 body: {
-                    user: {
-                        email: "string",
-                        password: "string"
-                    }
+                    email: "string",
+                    password: "string"
                 }
             },
             {
@@ -88,7 +84,8 @@ app.get("/docs", (req, res) => {
                         zip: "string",
                         country: "string (default: USA)"
                     },
-                    images: "[files - max 5]"
+                    images: "[files - max 15]",
+                    coverImg: "[file - primary image]"
                 }
             },
             {
@@ -99,25 +96,53 @@ app.get("/docs", (req, res) => {
             {
                 method: "PUT",
                 route: "/houses/:id",
-                description: "Edit house listing (Admin Only)",
+                description: "Update a house listing (Admin Only)",
                 headers: {
-                    Authorization: "Bearer <token>"
+                    Authorization: "Bearer <token>",
+                    ContentType: "multipart/form-data"
                 },
                 body: {
-                    // same as POST body
+                    // Same structure as POST /houses
                 }
             },
             {
                 method: "DELETE",
                 route: "/houses/:id",
-                description: "Delete house listing (Admin Only)",
+                description: "Delete a house listing (Admin Only)",
                 headers: {
                     Authorization: "Bearer <token>"
+                }
+            },
+            {
+                method: "POST",
+                route: "/houses/search",
+                description: "Search houses with optional filters (Public)",
+                headers: {
+                    ContentType: "application/json"
+                },
+                body: {
+                    city: "string (optional)",
+                    state: "string (optional)",
+                    zip: "string (optional)",
+                    country: "string (optional)",
+                    minPrice: "number (optional)",
+                    maxPrice: "number (optional)",
+                    minBedrooms: "number (optional)",
+                    maxBedrooms: "number (optional)",
+                    minBathrooms: "number (optional)",
+                    maxBathrooms: "number (optional)",
+                    minArea: "number (optional)",
+                    maxArea: "number (optional)",
+                    status: "Rent | Sale | Pending | Sold/Rented (optional)",
+                    propertyType: "Townhouse | Apartment | Single Family | Condo | Villa | Other (optional)",
+                    isFeatured: "boolean (optional)",
+                    isActive: "boolean (optional)"
                 }
             }
         ]
     });
 });
+
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI, {
