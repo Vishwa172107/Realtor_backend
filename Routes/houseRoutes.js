@@ -47,7 +47,12 @@ router.get("/houses", async (req, res) => {
 });
 
 // Add New House (Admin Only)
-router.post('/houses', verifyToken, upload.array('images', 15), async (req, res) => {
+const uploadFields = upload.fields([
+    { name: 'images', maxCount: 15 },
+    { name: 'coverImg', maxCount: 1 },
+]);
+
+router.post('/houses', verifyToken, uploadFields, async (req, res) => {
     try {
         // Step 1: Extract form data
         const {
@@ -91,21 +96,26 @@ router.post('/houses', verifyToken, upload.array('images', 15), async (req, res)
         const parsedAmenities = parseField(amenities);
         const parsedLabels = parseField(labels);
 
-        // Step 3: Upload images handled by multer-storage-cloudinary
-        const imageUrls = req.files.map(file => ({
+        // Step 3: Process images
+        const imageUrls = (req.files['images'] || []).map(file => ({
             url: file.path,
             caption: file.originalname,
         }));
 
-        // Step 4: Get coordinates from Nominatim API (latitude, longitude)
+        const coverImageFile = req.files['coverImg']?.[0];
+        const coverImg = coverImageFile ? {
+            url: coverImageFile.path,
+            caption: coverImageFile.originalname
+        } : null;
+
+        // Step 4: Get coordinates
         const { latitude, longitude } = await getCoordinates(street, city, state, zip);
 
-        // Check if coordinates are valid
         const validCoordinates = !isNaN(latitude) && !isNaN(longitude)
             ? [longitude, latitude]
             : ["Not Available", "Not Available"];
 
-        // Step 5: Create and save the house document
+        // Step 5: Create and save house
         const newHouse = new House({
             title,
             price,
@@ -137,12 +147,14 @@ router.post('/houses', verifyToken, upload.array('images', 15), async (req, res)
                     coordinates: validCoordinates,
                 },
             },
+            coverImg,
             images: imageUrls,
             createdBy: req.user.id,
         });
 
         await newHouse.save();
         res.status(201).json({ message: 'House created successfully', house: newHouse });
+
     } catch (error) {
         console.error('[HOUSE POST ERROR]', error);
         res.status(500).json({ error: 'Something went wrong!' });
@@ -150,94 +162,106 @@ router.post('/houses', verifyToken, upload.array('images', 15), async (req, res)
 });
 
 // Edit house (Admin only)
-router.put("/houses/:id", verifyToken, async (req, res) => {
-    try {
-        // Step 1: Destructure the fields from the request body
-        const {
-            title, price, priceFrequency, status, propertyType,
-            bedrooms, bathrooms, squareFootage, lotSize,
-            overview, description, additionalNotes,
-            virtualTourUrl, features, amenities, labels,
-            availableFrom, isFeatured, isActive,
-            'address.street': street, 'address.city': city,
-            'address.state': state, 'address.zip': zip,
-            'address.country': country = 'USA'
-        } = req.body;
+router.put(
+    "/houses/:id",
+    verifyToken,
+    uploadFields,
+    async (req, res) => {
+        try {
+            const {
+                title, price, priceFrequency, status, propertyType,
+                bedrooms, bathrooms, squareFootage, lotSize,
+                overview, description, additionalNotes,
+                virtualTourUrl, features, amenities, labels,
+                availableFrom, isFeatured, isActive,
+                'address.street': street, 'address.city': city,
+                'address.state': state, 'address.zip': zip,
+                'address.country': country = 'USA'
+            } = req.body;
 
-        // Step 2: Parse arrays (if they exist in the request)
-        const parseField = field => {
-            if (!field) return [];
-            try {
-                return JSON.parse(field);
-            } catch {
-                return Array.isArray(field) ? field : [field];
+            const parseField = field => {
+                if (!field) return [];
+                try {
+                    return JSON.parse(field);
+                } catch {
+                    return Array.isArray(field) ? field : [field];
+                }
+            };
+
+            const parsedFeatures = parseField(features);
+            const parsedAmenities = parseField(amenities);
+            const parsedLabels = parseField(labels);
+
+            // Handle uploaded files
+            const imageUrls = req.files?.images
+                ? req.files.images.map(file => ({
+                    url: file.path,
+                    caption: file.originalname
+                }))
+                : [];
+
+            const coverImgUrl = req.files?.coverImg?.[0]?.path || null;
+
+            // Get updated coordinates if address fields are changed
+            let coordinates = undefined;
+            if (street && city && state && zip) {
+                const { latitude, longitude } = await getCoordinates(street, city, state, zip);
+                coordinates = !isNaN(latitude) && !isNaN(longitude)
+                    ? [longitude, latitude]
+                    : ["Not Available", "Not Available"];
             }
-        };
 
-        const parsedFeatures = parseField(features);
-        const parsedAmenities = parseField(amenities);
-        const parsedLabels = parseField(labels);
+            const updateFields = {
+                title,
+                price,
+                priceFrequency,
+                status,
+                propertyType,
+                bedrooms,
+                bathrooms,
+                squareFootage,
+                lotSize,
+                overview,
+                description,
+                additionalNotes,
+                virtualTourUrl,
+                features: parsedFeatures,
+                amenities: parsedAmenities,
+                labels: parsedLabels,
+                availableFrom,
+                isFeatured,
+                isActive,
+                updatedAt: Date.now(),
+                ...(imageUrls.length > 0 && { images: imageUrls }),
+                ...(coverImgUrl && { coverImg: coverImgUrl }),
+                ...(street && city && state && zip && {
+                    address: {
+                        street,
+                        city,
+                        state,
+                        zip,
+                        country,
+                        ...(coordinates && { coordinates: { type: 'Point', coordinates } })
+                    }
+                })
+            };
 
-        // Step 3: Process image uploads (if new images are included)
-        const imageUrls = req.files ? req.files.map(file => ({
-            url: file.path,
-            caption: file.originalname,
-        })) : [];
+            const updatedHouse = await House.findByIdAndUpdate(
+                req.params.id,
+                updateFields,
+                { new: true }
+            );
 
-        // Step 4: Get the new coordinates (if address is updated)
-        let coordinates = undefined;
-        if (street && city && state && zip) {
-            const { latitude, longitude } = await getCoordinates(street, city, state, zip);
+            if (!updatedHouse)
+                return res.status(404).json({ error: "House not found" });
 
-            // If valid coordinates are found, use them
-            coordinates = !isNaN(latitude) && !isNaN(longitude)
-                ? [longitude, latitude]
-                : ["Not Available", "Not Available"];
+            res.json(updatedHouse);
+        } catch (err) {
+            console.error("[HOUSE PUT ERROR]", err);
+            res.status(400).json({ error: err.message });
         }
-
-        // Step 5: Update the house document in the database
-        const updatedHouse = await House.findByIdAndUpdate(req.params.id, {
-            title,
-            price,
-            priceFrequency,
-            status,
-            propertyType,
-            bedrooms,
-            bathrooms,
-            squareFootage,
-            lotSize,
-            overview,
-            description,
-            additionalNotes,
-            virtualTourUrl,
-            features: parsedFeatures,
-            amenities: parsedAmenities,
-            labels: parsedLabels,
-            availableFrom,
-            isFeatured,
-            isActive,
-            updatedAt: Date.now(),
-            address: {
-                street,
-                city,
-                state,
-                zip,
-                country,
-                ...(coordinates && { coordinates: { type: 'Point', coordinates } })
-            },
-            images: imageUrls.length > 0 ? imageUrls : undefined,
-        }, { new: true });
-
-        // Step 6: Handle cases where the house is not found
-        if (!updatedHouse) return res.status(404).json({ error: "House not found" });
-
-        res.json(updatedHouse);
-    } catch (err) {
-        console.error('[HOUSE PUT ERROR]', err);
-        res.status(400).json({ error: err.message });
     }
-});
-
+);
 
 // Delete house (Admin only)
 router.delete("/houses/:id", verifyToken, async (req, res) => {
@@ -249,6 +273,80 @@ router.delete("/houses/:id", verifyToken, async (req, res) => {
         res.json({ message: "House deleted successfully" });
     } catch (err) {
         res.status(400).json({ error: err.message });
+    }
+});
+
+router.post("/houses/search", async (req, res) => {
+    try {
+        const {
+            city,
+            state,
+            zip,
+            country,
+            minPrice,
+            maxPrice,
+            minBedrooms,
+            maxBedrooms,
+            minBathrooms,
+            maxBathrooms,
+            minArea,
+            maxArea,
+            status,
+            propertyType,
+            isFeatured,
+            isActive
+        } = req.body;
+
+        const query = {};
+
+        // Location
+        if (city) query["address.city"] = city;
+        if (state) query["address.state"] = state;
+        if (zip) query["address.zip"] = zip;
+        if (country) query["address.country"] = country;
+
+        // Price range
+        if (minPrice || maxPrice) {
+            query.price = {};
+            if (minPrice) query.price.$gte = Number(minPrice);
+            if (maxPrice) query.price.$lte = Number(maxPrice);
+        }
+
+        // Bedrooms
+        if (minBedrooms || maxBedrooms) {
+            query.bedrooms = {};
+            if (minBedrooms) query.bedrooms.$gte = Number(minBedrooms);
+            if (maxBedrooms) query.bedrooms.$lte = Number(maxBedrooms);
+        }
+
+        // Bathrooms
+        if (minBathrooms || maxBathrooms) {
+            query.bathrooms = {};
+            if (minBathrooms) query.bathrooms.$gte = Number(minBathrooms);
+            if (maxBathrooms) query.bathrooms.$lte = Number(maxBathrooms);
+        }
+
+        // Square footage
+        if (minArea || maxArea) {
+            query.squareFootage = {};
+            if (minArea) query.squareFootage.$gte = Number(minArea);
+            if (maxArea) query.squareFootage.$lte = Number(maxArea);
+        }
+
+        // Type & Status
+        if (status) query.status = status;
+        if (propertyType) query.propertyType = propertyType;
+
+        // Booleans
+        if (isFeatured !== undefined) query.isFeatured = isFeatured === true || isFeatured === 'true';
+        if (isActive !== undefined) query.isActive = isActive === true || isActive === 'true';
+
+        // Fetch properties
+        const houses = await House.find(query);
+        res.status(200).json(houses);
+    } catch (err) {
+        console.error("[HOUSE SEARCH ERROR]", err);
+        res.status(500).json({ error: "Search failed" });
     }
 });
 
