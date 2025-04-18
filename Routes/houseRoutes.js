@@ -3,7 +3,7 @@ const axios = require('axios');
 const router = express.Router();
 const House = require("../models/House");
 const verifyToken = require("../utils/Auth");
-const { upload } = require('../utils/cloudinary');
+const { upload, deleteFromCloudinary } = require('../utils/cloudinary');
 
 // Function to fetch coordinates from the Nominatim API
 async function getCoordinates(street, city, state, zip) {
@@ -100,12 +100,14 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
         const imageUrls = (req.files['images'] || []).map(file => ({
             url: file.path,
             caption: file.originalname,
+            "public_id": file.originalname.replace(/\.[^/.]+$/, '') // fallback
         }));
 
         const coverImageFile = req.files['coverImg']?.[0];
         const coverImg = coverImageFile ? {
             url: coverImageFile.path,
-            caption: coverImageFile.originalname
+            caption: coverImageFile.originalname,
+            "public_id": coverImageFile.originalname.replace(/\.[^/.]+$/, '') // fallback
         } : null;
 
         // Step 4: Validate coordinates
@@ -176,12 +178,14 @@ router.put(
                 overview, description, additionalNotes,
                 virtualTourUrl, features, amenities, labels,
                 availableFrom, isFeatured, isActive,
+                images: imagesFromBody,
+                coverImg: coverImgFromBody,
                 'address.street': street, 'address.city': city,
                 'address.state': state, 'address.zip': zip,
                 'address.country': country = 'USA'
             } = req.body;
 
-            const parseField = field => {
+            const parseField = (field) => {
                 if (!field) return [];
                 try {
                     return JSON.parse(field);
@@ -193,18 +197,54 @@ router.put(
             const parsedFeatures = parseField(features);
             const parsedAmenities = parseField(amenities);
             const parsedLabels = parseField(labels);
+            const clientSentImages = parseField(imagesFromBody); // Only URLs or full objects
+            const clientSentCoverImg = coverImgFromBody ? JSON.parse(coverImgFromBody) : null;
+
+            // Fetch existing house
+            const house = await House.findById(req.params.id);
+            if (!house) return res.status(404).json({ error: "House not found" });
 
             // Handle uploaded files
-            const imageUrls = req.files?.images
+            const uploadedImages = req.files?.images
                 ? req.files.images.map(file => ({
                     url: file.path,
-                    caption: file.originalname
+                    caption: file.originalname,
+                    "public_id": file.filename
                 }))
                 : [];
 
-            const coverImgUrl = req.files?.coverImg?.[0]?.path || null;
+            // Merge existing client-side images (kept) + new uploads
+            const updatedImages = [
+                ...clientSentImages.filter(img => img.url && img.public_id), // valid retained
+                ...uploadedImages // new ones from upload
+            ];
 
-            // Get updated coordinates if address fields are changed
+            // Delete images that were removed from the frontend
+            const existingImagePublicIds = house.images.map(img => img.public_id);
+            const retainedPublicIds = updatedImages.map(img => img.public_id);
+            const deletedPublicIds = existingImagePublicIds.filter(pid => !retainedPublicIds.includes(pid));
+
+            for (const public_id of deletedPublicIds) {
+                await deleteFromCloudinary(public_id);
+            }
+
+            // Handle cover image
+            let updatedCoverImg = house.coverImg;
+            if (req.files?.coverImg?.[0]) {
+                const file = req.files.coverImg[0];
+                if (house.coverImg?.public_id) {
+                    await deleteFromCloudinary(house.coverImg.public_id);
+                }
+                updatedCoverImg = {
+                    url: file.path,
+                    caption: file.originalname,
+                    "public_id": file.filename
+                };
+            } else if (clientSentCoverImg) {
+                updatedCoverImg = clientSentCoverImg; // Same as before
+            }
+
+            // Get coordinates if address updated
             let coordinates = undefined;
             if (street && city && state && zip) {
                 const { latitude, longitude } = await getCoordinates(street, city, state, zip);
@@ -233,9 +273,9 @@ router.put(
                 availableFrom,
                 isFeatured,
                 isActive,
+                images: updatedImages,
+                coverImg: updatedCoverImg,
                 updatedAt: Date.now(),
-                ...(imageUrls.length > 0 && { images: imageUrls }),
-                ...(coverImgUrl && { coverImg: coverImgUrl }),
                 ...(street && city && state && zip && {
                     address: {
                         street,
@@ -248,19 +288,14 @@ router.put(
                 })
             };
 
-            // Ensure we don't overwrite the `propertyId` (as it's auto-generated)
             delete updateFields.propertyId;
 
-            const updatedHouse = await House.findByIdAndUpdate(
-                req.params.id,
-                updateFields,
-                { new: true }
-            );
-
-            if (!updatedHouse)
-                return res.status(404).json({ error: "House not found" });
+            const updatedHouse = await House.findByIdAndUpdate(req.params.id, updateFields, {
+                new: true
+            });
 
             res.json(updatedHouse);
+
         } catch (err) {
             console.error("[HOUSE PUT ERROR]", err);
             res.status(400).json({ error: err.message });
@@ -268,6 +303,18 @@ router.put(
     }
 );
 
+router.get("/houses/:id", async (req, res) => {
+    try {
+        const house = await House.findById(req.params.id).populate("features").populate("amenities").
+            populate("labels").populate("images").populate("coverImg").populate("address");
+        if (!house)
+            return res.status(404).json({ error: "House not found" });
+        res.json(house);
+    } catch (err) {
+        console.error("[HOUSE GET ERROR]", err);
+        res.status(400).json({ error: err.message });
+    }
+})
 
 // Delete house (Admin only)
 router.delete("/houses/:id", verifyToken, async (req, res) => {
