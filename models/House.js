@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const shortid = require("shortid");  // Import shortid to generate unique IDs
 
 const HouseSchema = new mongoose.Schema({
     title: { type: String, required: true },
@@ -55,6 +56,12 @@ const HouseSchema = new mongoose.Schema({
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     createdBy: { type: String },
+
+    propertyId: {
+        type: String,
+        unique: true,
+        default: shortid.generate // Automatically generates a unique propertyId for each house
+    },
 
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },

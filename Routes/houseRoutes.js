@@ -75,12 +75,12 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
             availableFrom,
             isFeatured,
             isActive,
-            'address.street': street,
-            'address.city': city,
-            'address.state': state,
-            'address.zip': zip,
-            'address.country': country = 'USA'
+            address
         } = req.body;
+
+        if (!address || !address.street || !address.city || !address.state || !address.zip) {
+            return res.status(400).json({ error: 'Missing required address fields' });
+        }
 
         // Step 2: Parse arrays (stringified in FormData)
         const parseField = field => {
@@ -108,12 +108,13 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
             caption: coverImageFile.originalname
         } : null;
 
-        // Step 4: Get coordinates
-        const { latitude, longitude } = await getCoordinates(street, city, state, zip);
+        // Step 4: Validate coordinates
+        const longitude = parseFloat(address.longitude);
+        const latitude = parseFloat(address.latitude);
 
-        const validCoordinates = !isNaN(latitude) && !isNaN(longitude)
+        const validCoordinates = (!isNaN(longitude) && !isNaN(latitude))
             ? [longitude, latitude]
-            : ["Not Available", "Not Available"];
+            : [0, 0];  // fallback to [0, 0] instead of "Not Available"
 
         // Step 5: Create and save house
         const newHouse = new House({
@@ -137,11 +138,11 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
             isFeatured,
             isActive,
             address: {
-                street,
-                city,
-                state,
-                zip,
-                country,
+                street: address.street,
+                city: address.city,
+                state: address.state,
+                zip: address.zip,
+                country: address.country || 'USA',
                 coordinates: {
                     type: 'Point',
                     coordinates: validCoordinates,
@@ -149,7 +150,7 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
             },
             coverImg,
             images: imageUrls,
-            createdBy: req.user.id,
+            createdBy: req.user._id,
         });
 
         await newHouse.save();
@@ -160,6 +161,7 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
         res.status(500).json({ error: 'Something went wrong!' });
     }
 });
+
 
 // Edit house (Admin only)
 router.put(
@@ -246,6 +248,9 @@ router.put(
                 })
             };
 
+            // Ensure we don't overwrite the `propertyId` (as it's auto-generated)
+            delete updateFields.propertyId;
+
             const updatedHouse = await House.findByIdAndUpdate(
                 req.params.id,
                 updateFields,
@@ -262,6 +267,7 @@ router.put(
         }
     }
 );
+
 
 // Delete house (Admin only)
 router.delete("/houses/:id", verifyToken, async (req, res) => {
