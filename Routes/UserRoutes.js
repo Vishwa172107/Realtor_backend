@@ -24,3 +24,5 @@ router.get("/testimonials", async (req, res) => {
         res.status(500).json({ error: err })
     }
 })
+
+module.exports = router
