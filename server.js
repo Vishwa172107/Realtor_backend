@@ -4,6 +4,7 @@ require("dotenv").config()
 const cors = require("cors")
 const authRoutes = require("./Routes/AuthRoutes")
 const houseRoutes = require("./Routes/houseRoutes")
+const UserRoutes = require("./Routes/UserRoutes")
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -22,6 +23,7 @@ app.use(express.json())
 // Routes
 app.use(authRoutes)
 app.use(houseRoutes)
+app.use(UserRoutes)
 
 // API Docs Route
 app.get("/docs", (req, res) => {
