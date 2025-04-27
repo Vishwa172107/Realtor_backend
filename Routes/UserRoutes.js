@@ -3,8 +3,8 @@ const axios = require('axios');
 const Testimonials = require("../models/Testimonials");
 const router = express.Router();
 
-router.post("/testimonials", async (requestAnimationFrame, res) => {
-    const { name, text, role, rating } = requestAnimationFrame.body
+router.post("/testimonials", async (req, res) => {
+    const { name, text, role, rating } = req.body
     try {
         const test = new Testimonials({ name, text, role, rating })
         await test.save()
@@ -16,7 +16,7 @@ router.post("/testimonials", async (requestAnimationFrame, res) => {
     }
 })
 
-router.get("/testimonials", async (res, res) => {
+router.get("/testimonials", async (req, res) => {
     try {
         const testimonials = await Testimonials.find()
         res.json(testimonials)
