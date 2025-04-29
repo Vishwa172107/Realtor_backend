@@ -278,7 +278,7 @@ router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
 
     } catch (err) {
         console.error('[HOUSE PUT ERROR]', err);
-        res.status(500).json({ error: 'Something went wrong!' });
+        res.status(500).json({ message: 'Something went wrong!', error: err });
     }
 });
 
