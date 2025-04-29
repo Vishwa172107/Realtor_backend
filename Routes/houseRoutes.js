@@ -166,142 +166,122 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
 
 
 // Edit house (Admin only)
-router.put(
-    "/houses/:id",
-    verifyToken,
-    uploadFields,
-    async (req, res) => {
-        try {
-            const {
-                title, price, priceFrequency, status, propertyType,
-                bedrooms, bathrooms, squareFootage, lotSize,
-                overview, description, additionalNotes,
-                virtualTourUrl, features, amenities, labels,
-                availableFrom, isFeatured, isActive,
-                images: imagesFromBody,
-                coverImg: coverImgFromBody,
-                'address.street': street, 'address.city': city,
-                'address.state': state, 'address.zip': zip,
-                'address.country': country = 'USA'
-            } = req.body;
+// Edit house (Admin only)
+router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
+    try {
+        const {
+            title,
+            price,
+            priceFrequency,
+            status,
+            propertyType,
+            bedrooms,
+            bathrooms,
+            squareFootage,
+            lotSize,
+            overview,
+            description,
+            additionalNotes,
+            virtualTourUrl,
+            features,
+            amenities,
+            labels,
+            availableFrom,
+            isFeatured,
+            isActive,
+            address
+        } = req.body;
 
-            const parseField = (field) => {
-                if (!field) return [];
-                try {
-                    return JSON.parse(field);
-                } catch {
-                    return Array.isArray(field) ? field : [field];
-                }
-            };
-
-            const parsedFeatures = parseField(features);
-            const parsedAmenities = parseField(amenities);
-            const parsedLabels = parseField(labels);
-            const clientSentImages = parseField(imagesFromBody); // Only URLs or full objects
-            const clientSentCoverImg = coverImgFromBody ? JSON.parse(coverImgFromBody) : null;
-
-            // Fetch existing house
-            const house = await House.findById(req.params.id);
-            if (!house) return res.status(404).json({ error: "House not found" });
-
-            // Handle uploaded files
-            const uploadedImages = req.files?.images
-                ? req.files.images.map(file => ({
-                    url: file.path,
-                    caption: file.originalname,
-                    "public_id": file.filename
-                }))
-                : [];
-
-            // Merge existing client-side images (kept) + new uploads
-            const updatedImages = [
-                ...clientSentImages.filter(img => img.url && img.public_id), // valid retained
-                ...uploadedImages // new ones from upload
-            ];
-
-            // Delete images that were removed from the frontend
-            const existingImagePublicIds = house.images.map(img => img.public_id);
-            const retainedPublicIds = updatedImages.map(img => img.public_id);
-            const deletedPublicIds = existingImagePublicIds.filter(pid => !retainedPublicIds.includes(pid));
-
-            for (const public_id of deletedPublicIds) {
-                await deleteFromCloudinary(public_id);
-            }
-
-            // Handle cover image
-            let updatedCoverImg = house.coverImg;
-            if (req.files?.coverImg?.[0]) {
-                const file = req.files.coverImg[0];
-                if (house.coverImg?.public_id) {
-                    await deleteFromCloudinary(house.coverImg.public_id);
-                }
-                updatedCoverImg = {
-                    url: file.path,
-                    caption: file.originalname,
-                    "public_id": file.filename
-                };
-            } else if (clientSentCoverImg) {
-                updatedCoverImg = clientSentCoverImg; // Same as before
-            }
-
-            // Get coordinates if address updated
-            let coordinates = undefined;
-            if (street && city && state && zip) {
-                const { latitude, longitude } = await getCoordinates(street, city, state, zip);
-                coordinates = !isNaN(latitude) && !isNaN(longitude)
-                    ? [longitude, latitude]
-                    : ["Not Available", "Not Available"];
-            }
-
-            const updateFields = {
-                title,
-                price,
-                priceFrequency,
-                status,
-                propertyType,
-                bedrooms,
-                bathrooms,
-                squareFootage,
-                lotSize,
-                overview,
-                description,
-                additionalNotes,
-                virtualTourUrl,
-                features: parsedFeatures,
-                amenities: parsedAmenities,
-                labels: parsedLabels,
-                availableFrom,
-                isFeatured,
-                isActive,
-                images: updatedImages,
-                coverImg: updatedCoverImg,
-                updatedAt: Date.now(),
-                ...(street && city && state && zip && {
-                    address: {
-                        street,
-                        city,
-                        state,
-                        zip,
-                        country,
-                        ...(coordinates && { coordinates: { type: 'Point', coordinates } })
-                    }
-                })
-            };
-
-            delete updateFields.propertyId;
-
-            const updatedHouse = await House.findByIdAndUpdate(req.params.id, updateFields, {
-                new: true
-            });
-
-            res.json(updatedHouse);
-
-        } catch (err) {
-            console.error("[HOUSE PUT ERROR]", err);
-            res.status(400).json({ error: err.message });
+        if (!address || !address.street || !address.city || !address.state || !address.zip) {
+            return res.status(400).json({ error: 'Missing required address fields' });
         }
+
+        const parseField = (field) => {
+            if (!field) return [];
+            try {
+                return JSON.parse(field);
+            } catch {
+                return Array.isArray(field) ? field : [field];
+            }
+        };
+
+        const parsedFeatures = parseField(features);
+        const parsedAmenities = parseField(amenities);
+        const parsedLabels = parseField(labels);
+
+        const imageUrls = (req.files['images'] || []).map(file => ({
+            url: file.path,
+            caption: file.originalname,
+            public_id: file.originalname.replace(/\.[^/.]+$/, '') // fallback
+        }));
+
+        const coverImageFile = req.files['coverImg']?.[0];
+        const coverImg = coverImageFile ? {
+            url: coverImageFile.path,
+            caption: coverImageFile.originalname,
+            public_id: coverImageFile.originalname.replace(/\.[^/.]+$/, '') // fallback
+        } : null;
+
+        const longitude = parseFloat(address.longitude);
+        const latitude = parseFloat(address.latitude);
+
+        const validCoordinates = (!isNaN(longitude) && !isNaN(latitude))
+            ? [longitude, latitude]
+            : [0, 0]; // fallback
+
+        const updatedHouseData = {
+            title,
+            price,
+            priceFrequency,
+            status,
+            propertyType,
+            bedrooms,
+            bathrooms,
+            squareFootage,
+            lotSize,
+            overview,
+            description,
+            additionalNotes,
+            virtualTourUrl,
+            features: parsedFeatures,
+            amenities: parsedAmenities,
+            labels: parsedLabels,
+            availableFrom,
+            isFeatured,
+            isActive,
+            images: imageUrls,
+            ...(coverImg && { coverImg }),
+            address: {
+                street: address.street,
+                city: address.city,
+                state: address.state,
+                zip: address.zip,
+                country: address.country || 'USA',
+                coordinates: {
+                    type: 'Point',
+                    coordinates: validCoordinates,
+                },
+            },
+            updatedAt: Date.now(),
+        };
+
+        const updatedHouse = await House.findByIdAndUpdate(req.params.id, updatedHouseData, {
+            new: true,
+            runValidators: true
+        });
+
+        if (!updatedHouse) {
+            return res.status(404).json({ error: 'House not found' });
+        }
+
+        res.json({ message: 'House updated successfully', house: updatedHouse });
+
+    } catch (err) {
+        console.error('[HOUSE PUT ERROR]', err);
+        res.status(500).json({ error: 'Something went wrong!' });
     }
-);
+});
+
 
 router.get("/houses/:id", async (req, res) => {
     try {
