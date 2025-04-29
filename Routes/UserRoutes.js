@@ -30,7 +30,7 @@ router.post("/reviews", async (req, res) => {
     try {
         const { name, email, rating, review } = req.body
         if (!name || !email || !rating || !review) {
-            res.status(403).json({ message: "Missing fields!!!" })
+            res.status(400).json({ message: "Missing fields!!!" })
         }
         const new_review = new Review({ name, email, rating, review })
 
