@@ -8,5 +8,5 @@ const Contact_Schema = new mongoose.Schema({
     message: { type: String, required: true }
 }, { timestamps: true });
 
-const Contacts = mongoose.model("Contacts", ContactSchema)
+const Contacts = mongoose.model("Contacts", Contact_Schema)
 module.exports = Contacts
