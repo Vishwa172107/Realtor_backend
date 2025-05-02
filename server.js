@@ -5,6 +5,8 @@ const cors = require("cors")
 const authRoutes = require("./Routes/AuthRoutes")
 const houseRoutes = require("./Routes/houseRoutes")
 const UserRoutes = require("./Routes/UserRoutes")
+const services = require("./Routes/services")
+const adminRoutes = require("./Routes/AdminRoutes")
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -22,8 +24,10 @@ app.use(express.json())
 
 // Routes
 app.use(authRoutes)
+app.use(adminRoutes)
 app.use(houseRoutes)
 app.use(UserRoutes)
+app.use(services)
 
 // API Docs Route
 app.get("/docs", (req, res) => {
