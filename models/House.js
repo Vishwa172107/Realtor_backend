@@ -31,8 +31,8 @@ const HouseSchema = new mongoose.Schema({
 
     bedrooms: { type: Number, required: true, min: 0 },
     bathrooms: { type: Number, required: true, min: 0 },
-    squareFootage: { type: Number, min: 0 },
-    lotSize: { type: Number, min: 0 },
+    squareFootage: { type: Number, min: 0, required: true },
+    lotSize: { type: Number, min: 0, required: true },
     overview: { type: String },
     description: { type: String },
     additionalNotes: { type: String },
