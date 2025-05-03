@@ -109,11 +109,11 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
             isFeatured,
             isActive,
             address: {
-                street: address.street.toLowerCase(),
-                city: address.city.toLowerCase(),
-                state: address.state.toLowerCase(),
-                zip: address.zip.toLowerCase(),
-                country: (address.country || 'USA').toLowerCase(),
+                street: address.street,
+                city: address.city,
+                state: address.state,
+                zip: address.zip,
+                country: (address.country || 'USA'),
                 coordinates: {
                     type: 'Point',
                     coordinates: validCoordinates,
@@ -192,11 +192,11 @@ router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
             images: imageUrls,
             ...(coverImg && { coverImg }),
             address: {
-                street: address.street.toLowerCase(),
-                city: address.city.toLowerCase(),
-                state: address.state.toLowerCase(),
-                zip: address.zip.toLowerCase(),
-                country: (address.country || 'USA').toLowerCase(),
+                street: address.street,
+                city: address.city,
+                state: address.state,
+                zip: address.zip,
+                country: (address.country || 'USA'),
                 coordinates: {
                     type: 'Point',
                     coordinates: validCoordinates,
