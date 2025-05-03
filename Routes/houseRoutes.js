@@ -271,11 +271,11 @@ router.post("/houses/search", async (req, res) => {
 
         const query = {};
 
-        // Address fields (lowercased for case-insensitive match)
-        if (city) query["address.city"] = city.toLowerCase();
-        if (state) query["address.state"] = state.toLowerCase();
-        if (zip) query["address.zip"] = zip.toLowerCase();
-        if (country) query["address.country"] = country.toLowerCase();
+        // Address fields with partial, case-insensitive match
+        if (city) query["address.city"] = { $regex: city, $options: "i" };
+        if (state) query["address.state"] = { $regex: state, $options: "i" };
+        if (zip) query["address.zip"] = { $regex: zip, $options: "i" };
+        if (country) query["address.country"] = { $regex: country, $options: "i" };
 
         // Price
         if (minPrice || maxPrice) {
@@ -305,9 +305,9 @@ router.post("/houses/search", async (req, res) => {
             if (maxArea) query.squareFootage.$lte = Number(maxArea);
         }
 
-        // Status & type
-        if (status) query.status = status;
-        if (propertyType) query.propertyType = propertyType;
+        // Status & type with case-insensitive partial match
+        if (status) query.status = { $regex: status, $options: "i" };
+        if (propertyType) query.propertyType = { $regex: propertyType, $options: "i" };
 
         // Boolean fields
         if (isFeatured !== undefined) query.isFeatured = isFeatured === true || isFeatured === 'true';
