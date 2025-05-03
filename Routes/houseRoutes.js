@@ -54,35 +54,17 @@ const uploadFields = upload.fields([
 
 router.post('/houses', verifyToken, uploadFields, async (req, res) => {
     try {
-        // Step 1: Extract form data
         const {
-            title,
-            price,
-            priceFrequency,
-            status,
-            propertyType,
-            bedrooms,
-            bathrooms,
-            squareFootage,
-            lotSize,
-            overview,
-            description,
-            additionalNotes,
-            virtualTourUrl,
-            features,
-            amenities,
-            labels,
-            availableFrom,
-            isFeatured,
-            isActive,
-            address
+            title, price, priceFrequency, status, propertyType,
+            bedrooms, bathrooms, squareFootage, lotSize,
+            overview, description, additionalNotes, virtualTourUrl,
+            features, amenities, labels, availableFrom, isFeatured, isActive, address
         } = req.body;
 
         if (!address || !address.street || !address.city || !address.state || !address.zip) {
             return res.status(400).json({ error: 'Missing required address fields' });
         }
 
-        // Step 2: Parse arrays (stringified in FormData)
         const parseField = field => {
             if (!field) return [];
             try {
@@ -96,43 +78,30 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
         const parsedAmenities = parseField(amenities);
         const parsedLabels = parseField(labels);
 
-        // Step 3: Process images
         const imageUrls = (req.files['images'] || []).map(file => ({
             url: file.path,
             caption: file.originalname,
-            "public_id": file.originalname.replace(/\.[^/.]+$/, '') // fallback
+            public_id: file.originalname.replace(/\.[^/.]+$/, '')
         }));
 
         const coverImageFile = req.files['coverImg']?.[0];
         const coverImg = coverImageFile ? {
             url: coverImageFile.path,
             caption: coverImageFile.originalname,
-            "public_id": coverImageFile.originalname.replace(/\.[^/.]+$/, '') // fallback
+            public_id: coverImageFile.originalname.replace(/\.[^/.]+$/, '')
         } : null;
 
-        // Step 4: Validate coordinates
         const longitude = parseFloat(address.longitude);
         const latitude = parseFloat(address.latitude);
 
         const validCoordinates = (!isNaN(longitude) && !isNaN(latitude))
             ? [longitude, latitude]
-            : [0, 0];  // fallback to [0, 0] instead of "Not Available"
+            : [0, 0];
 
-        // Step 5: Create and save house
         const newHouse = new House({
-            title,
-            price,
-            priceFrequency,
-            status,
-            propertyType,
-            bedrooms,
-            bathrooms,
-            squareFootage,
-            lotSize,
-            overview,
-            description,
-            additionalNotes,
-            virtualTourUrl,
+            title, price, priceFrequency, status, propertyType,
+            bedrooms, bathrooms, squareFootage, lotSize,
+            overview, description, additionalNotes, virtualTourUrl,
             features: parsedFeatures,
             amenities: parsedAmenities,
             labels: parsedLabels,
@@ -140,15 +109,15 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
             isFeatured,
             isActive,
             address: {
-                street: address.street,
-                city: address.city,
-                state: address.state,
-                zip: address.zip,
-                country: address.country || 'USA',
+                street: address.street.toLowerCase(),
+                city: address.city.toLowerCase(),
+                state: address.state.toLowerCase(),
+                zip: address.zip.toLowerCase(),
+                country: (address.country || 'USA').toLowerCase(),
                 coordinates: {
                     type: 'Point',
                     coordinates: validCoordinates,
-                },
+                }
             },
             coverImg,
             images: imageUrls,
@@ -157,39 +126,20 @@ router.post('/houses', verifyToken, uploadFields, async (req, res) => {
 
         await newHouse.save();
         res.status(201).json({ message: 'House created successfully', house: newHouse });
-
     } catch (error) {
         console.error('[HOUSE POST ERROR]', error);
         res.status(500).json({ error: 'Something went wrong!' });
     }
 });
 
-
-// Edit house (Admin only)
 // Edit house (Admin only)
 router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
     try {
         const {
-            title,
-            price,
-            priceFrequency,
-            status,
-            propertyType,
-            bedrooms,
-            bathrooms,
-            squareFootage,
-            lotSize,
-            overview,
-            description,
-            additionalNotes,
-            virtualTourUrl,
-            features,
-            amenities,
-            labels,
-            availableFrom,
-            isFeatured,
-            isActive,
-            address
+            title, price, priceFrequency, status, propertyType,
+            bedrooms, bathrooms, squareFootage, lotSize,
+            overview, description, additionalNotes, virtualTourUrl,
+            features, amenities, labels, availableFrom, isFeatured, isActive, address
         } = req.body;
 
         if (!address || !address.street || !address.city || !address.state || !address.zip) {
@@ -212,14 +162,14 @@ router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
         const imageUrls = (req.files['images'] || []).map(file => ({
             url: file.path,
             caption: file.originalname,
-            public_id: file.originalname.replace(/\.[^/.]+$/, '') // fallback
+            public_id: file.originalname.replace(/\.[^/.]+$/, '')
         }));
 
         const coverImageFile = req.files['coverImg']?.[0];
         const coverImg = coverImageFile ? {
             url: coverImageFile.path,
             caption: coverImageFile.originalname,
-            public_id: coverImageFile.originalname.replace(/\.[^/.]+$/, '') // fallback
+            public_id: coverImageFile.originalname.replace(/\.[^/.]+$/, '')
         } : null;
 
         const longitude = parseFloat(address.longitude);
@@ -227,22 +177,12 @@ router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
 
         const validCoordinates = (!isNaN(longitude) && !isNaN(latitude))
             ? [longitude, latitude]
-            : [0, 0]; // fallback
+            : [0, 0];
 
         const updatedHouseData = {
-            title,
-            price,
-            priceFrequency,
-            status,
-            propertyType,
-            bedrooms,
-            bathrooms,
-            squareFootage,
-            lotSize,
-            overview,
-            description,
-            additionalNotes,
-            virtualTourUrl,
+            title, price, priceFrequency, status, propertyType,
+            bedrooms, bathrooms, squareFootage, lotSize,
+            overview, description, additionalNotes, virtualTourUrl,
             features: parsedFeatures,
             amenities: parsedAmenities,
             labels: parsedLabels,
@@ -252,11 +192,11 @@ router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
             images: imageUrls,
             ...(coverImg && { coverImg }),
             address: {
-                street: address.street,
-                city: address.city,
-                state: address.state,
-                zip: address.zip,
-                country: address.country || 'USA',
+                street: address.street.toLowerCase(),
+                city: address.city.toLowerCase(),
+                state: address.state.toLowerCase(),
+                zip: address.zip.toLowerCase(),
+                country: (address.country || 'USA').toLowerCase(),
                 coordinates: {
                     type: 'Point',
                     coordinates: validCoordinates,
@@ -281,7 +221,6 @@ router.put('/houses/:id', verifyToken, uploadFields, async (req, res) => {
         res.status(500).json({ message: 'Something went wrong!', error: err });
     }
 });
-
 
 router.get("/houses/:id", async (req, res) => {
     try {
@@ -332,13 +271,13 @@ router.post("/houses/search", async (req, res) => {
 
         const query = {};
 
-        // Location
-        if (city) query["address.city"] = city;
-        if (state) query["address.state"] = state;
-        if (zip) query["address.zip"] = zip;
-        if (country) query["address.country"] = country;
+        // Address fields (lowercased for case-insensitive match)
+        if (city) query["address.city"] = city.toLowerCase();
+        if (state) query["address.state"] = state.toLowerCase();
+        if (zip) query["address.zip"] = zip.toLowerCase();
+        if (country) query["address.country"] = country.toLowerCase();
 
-        // Price range
+        // Price
         if (minPrice || maxPrice) {
             query.price = {};
             if (minPrice) query.price.$gte = Number(minPrice);
@@ -359,22 +298,21 @@ router.post("/houses/search", async (req, res) => {
             if (maxBathrooms) query.bathrooms.$lte = Number(maxBathrooms);
         }
 
-        // Square footage
+        // Area
         if (minArea || maxArea) {
             query.squareFootage = {};
             if (minArea) query.squareFootage.$gte = Number(minArea);
             if (maxArea) query.squareFootage.$lte = Number(maxArea);
         }
 
-        // Type & Status
+        // Status & type
         if (status) query.status = status;
         if (propertyType) query.propertyType = propertyType;
 
-        // Booleans
+        // Boolean fields
         if (isFeatured !== undefined) query.isFeatured = isFeatured === true || isFeatured === 'true';
         if (isActive !== undefined) query.isActive = isActive === true || isActive === 'true';
 
-        // Fetch properties
         const houses = await House.find(query);
         res.status(200).json(houses);
     } catch (err) {
