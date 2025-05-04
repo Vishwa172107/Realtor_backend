@@ -54,7 +54,7 @@ const HouseSchema = new mongoose.Schema({
     features: [{ type: String }],
     amenities: [{ type: String }],
     labels: [{ type: String }],
-    availableFrom: { type: Date, default: Date.now },
+    availableFrom: { type: Date, required: true },
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     createdBy: { type: String },
