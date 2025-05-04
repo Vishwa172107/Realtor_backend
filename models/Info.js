@@ -2,11 +2,10 @@ const mongoose = require("mongoose");
 
 const InfoSchema = new mongoose.Schema({
     stats: [{
+        title: { type: String, required: true },
         value: { type: Number, required: true },
-        prefix: { type: String, required: false },
-        suffix: { type: String, required: true },
-        label: { type: String, required: true },
-        icon: { type: String, required: false }
+        icon: { type: String, required: false },
+        color: { type: String, required: true }
     }]
 });
 
