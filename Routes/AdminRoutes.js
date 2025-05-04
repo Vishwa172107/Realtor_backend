@@ -6,7 +6,7 @@ const Info = require("../models/Info");
 // POST - Upload new stats
 router.post("/stats", verifyToken, async (req, res) => {
     try {
-        const stats = req.body;
+        const stats = req.body.stats;
         if (!Array.isArray(stats) || stats.length === 0) {
             return res.status(400).json({ message: "Invalid payload!" });
         }
@@ -23,7 +23,7 @@ router.post("/stats", verifyToken, async (req, res) => {
 // PUT - Update existing stats (assuming only 1 stats document exists)
 router.put("/stats", verifyToken, async (req, res) => {
     try {
-        const stats = req.body;
+        const stats = req.body.stats;
         if (!Array.isArray(stats) || stats.length === 0) {
             return res.status(400).json({ message: "Invalid payload!" });
         }
