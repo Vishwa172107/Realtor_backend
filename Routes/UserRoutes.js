@@ -168,6 +168,17 @@ router.post("/subscribe", async (req, res) => {
     }
 });
 
+//GET Newsletter Subscribers
+router.get("/subscribers", async (req, res) => {
+    try {
+        const subscribers = await Subscribers.find()
+        res.json(subscribers)
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({ message: "Something Wen Wrong!", error: err })
+    }
+})
+
 // POST unsubscribe
 router.post("/unsubscribe", async (req, res) => {
     try {
