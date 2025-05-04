@@ -1,5 +1,5 @@
 const express = require("express");
-const axios = require('axios');
+const verifyToken = require("../utils/Auth")
 const Testimonials = require("../models/Testimonials");
 const Review = require("../models/Review");
 const Subscribers = require("../models/Subscribers");
@@ -169,7 +169,7 @@ router.post("/subscribe", async (req, res) => {
 });
 
 //GET Newsletter Subscribers
-router.get("/subscribers", async (req, res) => {
+router.get("/subscribers", verifyToken, async (req, res) => {
     try {
         const subscribers = await Subscribers.find()
         res.json(subscribers)
