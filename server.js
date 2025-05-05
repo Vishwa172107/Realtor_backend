@@ -404,7 +404,39 @@ app.get("/docs", (req, res) => {
                 method: "DELETE",
                 route: "/testimonials/:id",
                 description: "Delete testimonial by ID"
+            },
+
+            {
+                "method": "POST",
+                "route": "/subscribe",
+                "description": "Subscribe a user with their email",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": {
+                    "email": "string"
+                }
+            },
+            {
+                "method": "GET",
+                "route": "/subscribers",
+                "description": "Get a list of all subscribed users",
+                "headers": {
+                    "Content-Type": "application/json"
+                }
+            },
+            {
+                "method": "POST",
+                "route": "/unsubscribe",
+                "description": "Unsubscribe a user using their email",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": {
+                    "email": "string"
+                }
             }
+
         ]
     });
 });
